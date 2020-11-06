@@ -1,55 +1,25 @@
-def transcribe_streaming(stream_file):
-    """Streams transcription of the given audio file."""
-    import io
-    from google.cloud import speech
-
-    client = speech.SpeechClient()
-
-    with io.open(stream_file, "rb") as audio_file:
-        content = audio_file.read()
-
-    # In practice, stream should be a generator yielding chunks of audio data.
-    stream = [content]
-    requests = (
-        speech.StreamingRecognizeRequest(audio_content=chunk) for chunk in stream
-    )
-
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=16000,
-        language_code="ja-JP",
-    )
-    streaming_config = speech.StreamingRecognitionConfig(config=config)
-
-    # streaming_recognize returns a generator.
-    responses = client.streaming_recognize(config=streaming_config, requests=requests,)
-
-    for response in responses:
-        # Once the transcription has settled, the first result will contain the
-        # is_final result. The other results will be for subsequent portions of
-        # the audio.
-        for result in response.results:
-            print("Finished: {}".format(result.is_final))
-            print("Stability: {}".format(result.stability))
-            alternatives = result.alternatives
-            # The alternatives are ordered from most likely to least.
-            for alternative in alternatives:
-                print("Confidence: {}".format(alternative.confidence))
-                print(u"Transcript: {}".format(alternative.transcript))
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'speech-to-text-292704-682951ab3a5d.json'
-from oauth2client.service_account import ServiceAccountCredentials
-from httplib2 import Http
-import gspread
-
-scopes = ['https://www.googleapis.com/auth/spreadsheets']
-json_file = 'speech-to-text-292704-682951ab3a5d.json' 
-credentials = ServiceAccountCredentials.from_json_keyfile_name(json_file, scopes=scopes)
-http_auth = credentials.authorize(Http())
-
-doc_id = '1R_yVg7nLrWNqQyBTiYrNmDkRQj4pHm25SFT480AXqPs/edit#gid=0'
-client = gspread.authorize(credentials)
-googlefile   = client.open_by_key(doc_id)
-worksheet  = googlefile.sheet1
-
-def gSheetEdit(text):
-    worksheet.append_row([text])
+##############################
+from google.cloud import speech_v1
+from google.cloud.speech_v1 import enums
+import io
+def sample_recognize(local_file_path):
+client = speech_v1.SpeechClient()
+language_code = "ja-JP" # 言語コードを設定
+sample_rate_hertz = 16000 # 周波数を16000
+# データのエンコード
+encoding = enums.RecognitionConfig.AudioEncoding.LINEAR16
+config = {
+"language_code": language_code,
+"sample_rate_hertz": sample_rate_hertz,
+"encoding": encoding,
+}
+with io.open(local_file_path, "rb") as f:
+content = f.read()
+audio = {"content": content}
+response = client.recognize(config, audio)
+for result in response.results:
+alternative = result.alternatives[0] # 最初の候補である効率が最も高い
+print(u"Transcript: {}".format(alternative.transcript))
+if __name__ == '__main__':
+sample_recognize('record/201008_001.MP3') # 音声認識したいファイルのパスを指定
+##############################
